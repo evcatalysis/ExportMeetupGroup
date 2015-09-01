@@ -1,0 +1,126 @@
+﻿@model ExportMeetupGroup.Models.HomeModel
+@using CarlosAg.ExcelXmlWriter
+@using ExportMeetupGroup.Common
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimal-ui">
+    <title>Export Meetup Group</title>
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <style type="text/css">
+        body {
+            padding: 10px;
+        }
+
+        .provider {
+            height: 40px;
+            width: 165px;
+            cursor: pointer;
+            background-size: contain;
+            margin-top: 10px;
+            background-repeat: no-repeat;
+        }
+
+        #muLogin {
+            background-image: url("/Images/meetup-login.png");
+        }
+
+        form {
+            display: inline-block;
+        }
+    </style>
+    <script type="text/javascript">
+        var meetupLogin = function () {
+            window.location.href = "https://secure.meetup.com/oauth2/authorize"
+                + "?client_id=@Helper.Meetup_client_id"
+                + "&response_type=token"
+                + "&redirect_uri=@Helper.Meetup_redirect_uri";
+        }
+
+        function getParameterByName(url, name) {
+            name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+            var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+            results = regex.exec(url);
+            return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+        }
+
+        function onLoad() {
+            var hash = location.hash.split("#");
+            hash = hash[hash.length - 1];
+            var access_token = getParameterByName("?" + hash, 'access_token');
+
+            if (access_token != "") {
+                document.getElementById('access_token').value = access_token;
+                document.getElementById("frmLogin").submit();
+            }
+        }
+    </script>
+</head>
+<body onload="onLoad()">
+    <div>
+        @if (SessionManagement.access_token == null)
+        {
+            <form id="frmLogin" action="/Home/Login" method="post">
+                <input type="hidden" name="access_token" id="access_token" />
+            </form>
+            <div id="muLogin" class="provider" onclick="javascript:meetupLogin();"></div>
+        }
+        else
+        {
+            <form action="." method="post">
+                <input type="text" placeholder="Enter Meetup Group URL" name="MeetupGroupUrl" value="@Model.MeetupGroupUrl" />
+                <button type="submit">Preview</button>
+            </form>
+            if (SessionManagement.model != null)
+            {
+            <form action="/Home/ExportToExcel" method="post">
+                <button type="submit">Export</button>
+            </form>
+            <ul class="nav nav-tabs">
+                <li class="active"><a data-toggle="tab" href="#tab_0">User</a></li>
+                <li><a data-toggle="tab" href="#tab_1">Topics</a></li>
+                <li><a data-toggle="tab" href="#tab_2">User Topics</a></li>
+            </ul>
+            <div class="tab-content">
+                @for (int w = 0; w < SessionManagement.model.excel.Worksheets.Count; w++)
+                {
+                    Worksheet sheet = SessionManagement.model.excel.Worksheets[w];
+                    <div id="tab_@w" class="tab-pane fade in @string.Format("{0}", w == 0 ? "active" : "")">
+                        <table class="table table-bordered table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    @foreach (WorksheetCell cell in sheet.Table.Rows[0].Cells)
+                                    {
+                                        <th>@cell.Data.Text</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 1; i < sheet.Table.Rows.Count; i++)
+                                {
+                                    WorksheetRow row = sheet.Table.Rows[i];
+                                    <tr>
+                                        @foreach (WorksheetCell cell in row.Cells)
+                                        {
+                                            <td>@cell.Data.Text</td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+            }
+        }
+    </div>
+</body>
+</html>
+
